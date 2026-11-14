@@ -1,13 +1,15 @@
 # Generated figures
 
-This directory collects all figures in one place. Run the scripts from the repository root after producing the corresponding result files:
+All publication plots are collected here. From the repository root, after running the corresponding experiments:
 
 ```bash
-python analysis/figures.py       # simulation figures 1–5
-python analysis/real_figure.py   # real-data figure 6
+python analysis/figures.py       # Figures 1–5 (simulation)
+python analysis/real_figure.py   # Figure 6 (real data)
 ```
 
-Expected files:
+The first two simulation figures are the treatment-effect recovery and interval-calibration plots represented by the reference images supplied with the project. They are generated from the saved simulation result file rather than copied as standalone attachments.
+
+Expected outputs:
 
 - `fig1_treatment_effect.pdf` and `.png`
 - `fig2_calibration.pdf` and `.png`
@@ -15,5 +17,3 @@ Expected files:
 - `fig4_prediction_edge.pdf` and `.png`
 - `fig5_action_support.pdf` and `.png` (requires `results/support.json`)
 - `fig6_real_data.png` (requires `results/real_results.json`)
-
-The images attached in chat are not available to the repository file tools as original binary files. The scripts above regenerate these plots from the experiment outputs.

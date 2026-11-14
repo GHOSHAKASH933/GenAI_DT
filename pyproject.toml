@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "genai-dt"
+version = "0.1.0"
+description = "Research code for treatment-effect validity and calibrated abstention in generative digital twins"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+  "torch>=2.0",
+  "numpy",
+  "scipy",
+  "scikit-learn",
+  "matplotlib",
+  "pandas",
+  "openpyxl",
+  "xlrd",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=7"]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["genai_dt*", "realdata*", "analysis*"]

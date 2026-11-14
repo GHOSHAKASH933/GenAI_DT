@@ -16,7 +16,7 @@ from __future__ import annotations
 from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 
-import argparse, json
+import argparse, json, hashlib
 import numpy as np
 import torch
 
@@ -24,6 +24,11 @@ from . import data as D
 from .simulator import build_cohort, simulate_closed_loop
 from .models import CVAETwin, train_cvae
 from .control import glycaemic_metrics, DOSE_GRID, TARGET, HYPO
+
+
+def _stable_seed(*parts):
+    payload = "|".join(map(str, parts)).encode("utf-8")
+    return int.from_bytes(hashlib.blake2b(payload, digest_size=4).digest(), "big")
 
 
 def guarded_twin_controller(model, params, use_iob=True, use_plgs=True, n_samples=24):
@@ -63,7 +68,7 @@ def run_seed(seed, cfg):
     for name, kw in arms.items():
         per = []
         for rec in te[:cfg["loop_patients"]]:
-            rng = np.random.default_rng(abs(hash((seed, rec["pid"], "rb"))) % (2**32))
+            rng = np.random.default_rng(_stable_seed(seed, rec["pid"], "rb"))
             ctrl = guarded_twin_controller(twin, rec["params"],
                                            n_samples=cfg["loop_samples"], **kw)
             trc = simulate_closed_loop(rec["params"], cfg["loop_days"], rng, ctrl,
