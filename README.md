@@ -31,124 +31,104 @@ The simulated patients lose 11.5 mg/dL of glucose per unit of insulin on average
 | Twin, conformal + action-support gate | 6.2 | 91.6 | 8.3 |
 | Action-residual twin (randomised data), both gates | 4.4 | 92.4 | 3.0 |
 
-Adding the safety features found in commercial pumps (an insulin-on-board limit and a predictive low-glucose suspend) to the ungated twin brings time below range down from 37.3% to 21.2%. That still leaves it well short of the gated twin. Bounding the dose doesn't help when the twin's idea of what insulin does is wrong.
+Adding an insulin-on-board limit and predictive low-glucose suspend to the ungated twin brings time below range down from 37.3% to 21.2%. Bounding the dose does not fix a twin whose estimate of insulin's effect is wrong.
 
 **Real patient data (ShanghaiT1DM / ShanghaiT2DM, 112 patients)**
 
 - Forecasting: ridge regression (27.7 mg/dL RMSE over two hours) and an MLP (27.1) beat both generative twins (about 33).
-- The raw records associate each unit of insulin with glucose 2.4 mg/dL *higher* two hours later, because insulin is given when glucose is about to rise. Models trained on these records pick up the confounding: the MLP and the CVAE learn the wrong sign in all 8 splits. The action-residual twin, whose effect term can't go negative, gets the right sign in 6 of 8, but the effect it learns is tiny.
-- A 2-unit dose passes the action-support test in only 4.7% of situations, so a gated twin would decline most dosing questions on this data.
-- Pooled conformal coverage looks fine overall (0.888), but type 1 patients are covered at only 0.775. Calibrating each diabetes type separately brings them to 0.865.
+- The raw records associate each unit of insulin with glucose 2.4 mg/dL *higher* two hours later, because insulin is given when glucose is about to rise. The MLP and CVAE learn the wrong sign in all 8 splits. The action-residual twin gets the right sign in 6 of 8, but learns a tiny effect.
+- A 2-unit dose passes the action-support test in only 4.7% of situations.
+- Pooled conformal coverage is 0.888 overall but 0.775 for type 1 patients; calibrating by diabetes type brings type 1 coverage to 0.865.
 
-<p align="center">
-  <img src="results/figures/fig1_treatment_effect.png" width="85%"><br>
-  <em>Share of the true insulin effect each model recovers in simulation.</em>
-</p>
+## Repository structure
 
-<p align="center">
-  <img src="results/figures/fig3_closed_loop.png" width="85%"><br>
-  <em>Closed-loop results without (top) and with (bottom) unseen exercise.</em>
-</p>
-
-<p align="center">
-  <img src="results/figures/fig6_real_data.png" width="85%"><br>
-  <em>Real records: learned insulin effect, and conformal coverage by diabetes type.</em>
-</p>
-
-## What is in the repository
-
-```
-genai_dt/                 core package
-  simulator.py            virtual patients (Bergman minimal model with meal absorption
-                          and subcutaneous insulin kinetics); measures each patient's
-                          true insulin response by running them twice
-  data.py                 windowing and patient-level splits
-  models.py               CVAE twin, action-residual twin, MLP, edge student, baselines
-  federated.py            FedAvg and per-site fine-tuning
-  conformal.py            split-conformal gate on the two-hour glucose minimum
-  intervention.py         randomised vs titrated dose exploration, action-support gate,
-                          dose-response probe
-  control.py              basal, PID and twin-based controllers, glycaemic metrics
-  experiments.py          main simulation study (effect recovery, forecasting,
-                          calibration, closed loop, edge distillation)
-  support_analysis.py     which doses the support gate allows, by training data
-  robustness.py           ungated twin with standard pump safeguards
-realdata/
-  shanghai.py             loader for the ShanghaiT1DM/T2DM Excel files
-  real_experiments.py     forecasting, calibration, action support and learned
-                          insulin effect on real records
-analysis/
-  analyse.py              statistics (Wilcoxon, Holm, bootstrap CIs, power check)
-  figures.py              simulation figures
-  real_figure.py          real-data figure
-results/                  the result files behind the paper, and all figures
-data/                     put the Shanghai dataset here (not redistributed)
+```text
+genai_dt/                 core simulation, models, gates, controllers, experiments
+analysis/                 statistics and simulation/real-data figure scripts
+realdata/                 Shanghai data loader and real-data experiments
+data/                     put the Shanghai datasets here (not redistributed)
+results/figures/          all generated figure files in one folder
+scripts/                  project verification helper
 ```
 
-## Setup
+## First-time setup
 
-Python 3.10 or newer. A CPU is enough; nothing uses a GPU.
+Python 3.10 or newer is required. The experiments run on CPU; a GPU is not required. From the repository root on macOS/Linux:
 
 ```bash
-pip install -r requirements.txt
+bash setup.sh
+source .venv/bin/activate
 ```
 
-## Reproducing the results
+The setup script creates `.venv`, installs `requirements.txt`, then runs syntax, import, and model-shape smoke checks. On Windows PowerShell, create and activate the environment and install dependencies with:
 
-Run everything from the repository root. The times below are for two CPU cores.
+```powershell
+py -3.10 -m venv .venv
+.venv\Scripts\Activate.ps1
+python -m pip install --upgrade pip
+pip install -r requirements.txt
+python scripts/verify_project.py
+```
 
-**1. Main simulation study** (5 to 10 minutes per seed)
+## Quick validation
+
+This small run checks that the simulation pipeline executes and writes a result file; it is not a reproduction of the paper's reported results.
+
+```bash
+python scripts/verify_project.py
+python -m genai_dt.experiments --quick --seeds 1 --out results/quick.json
+```
+
+## Full experiment run
+
+Run all eight simulation seeds (approximately 5–10 minutes per seed on two CPU cores):
 
 ```bash
 python -m genai_dt.experiments --seeds 8 --out results/results.json
 ```
 
-For a one-minute check that everything works:
+Optional supplementary analyses:
 
 ```bash
-python -m genai_dt.experiments --quick --seeds 1 --out results/quick.json
+python -m genai_dt.support_analysis --seeds 8
+python -m genai_dt.robustness --seeds 8
 ```
 
-**2. Supplementary simulation analyses**
+## Real-data run
 
-```bash
-python -m genai_dt.support_analysis --seeds 8      # which doses the gate allows
-python -m genai_dt.robustness --seeds 8            # ungated twin + pump safeguards
-```
-
-**3. Real patient data** (about 70 seconds per seed)
-
-Download the ShanghaiT1DM and ShanghaiT2DM datasets from figshare (https://doi.org/10.6084/m9.figshare.c.6310860) and unzip them into `data/` so that you have `data/Shanghai_T1DM/` and `data/Shanghai_T2DM/`. Then:
+Download the ShanghaiT1DM and ShanghaiT2DM datasets from figshare (https://doi.org/10.6084/m9.figshare.c.6310860) and extract them under `data/` as `data/Shanghai_T1DM/` and `data/Shanghai_T2DM/`. The private source data are not included in this repository. Then run:
 
 ```bash
 python realdata/real_experiments.py --seeds 8
 ```
 
-**4. Statistics and figures**
+To smoke-test the real-data pipeline with the dataset installed, use `--quick`:
 
 ```bash
-python analysis/analyse.py          # prints every comparison reported in the paper
-python analysis/figures.py          # simulation figures -> results/figures/
-python analysis/real_figure.py      # real-data figure  -> results/figures/
+python realdata/real_experiments.py --quick --seeds 1
 ```
 
-The result files used in the paper are already in `results/`, so step 4 works without rerunning anything.
+## Figures and statistics
 
-## Design choices worth knowing about
+All figure scripts write their outputs to the single directory `results/figures/`. After running the relevant experiments, generate simulation figures 1–5 and the real-data figure 6 with:
 
-- **Splits are by patient, never by time window.** No patient appears in both training and test data.
-- **The true insulin effect is measured, not assumed.** `simulator.measure_sensitivity` runs each simulated patient with and without a unit dose under identical meals and noise, and therapy parameters are derived from that measurement.
-- **Dose randomisation matters.** `intervention.randomised_dose_policy` can draw the dose size independently of the patient's state (identifies the effect) or scale it to current glucose (looks safer, but doesn't). Both are reported.
-- **No underpowered significance tests.** With 8 seeds the smallest possible Wilcoxon p-value is 0.0078. `analysis/analyse.py` flags any comparison with too few seeds to reach significance.
-- **The real-data section can't test closed-loop control.** That would mean dosing real patients. It tests forecasting, calibration, action support and the direction of the learned insulin effect.
+```bash
+python analysis/analyse.py
+python analysis/figures.py
+python analysis/real_figure.py
+```
 
-## Limitations
+`analysis/figures.py` generates the treatment-effect, calibration, closed-loop, prediction/edge, and action-support plots. `analysis/real_figure.py` generates the real-data plot. The action-support plot requires `results/support.json`; the real-data plot requires `results/real_results.json`. See `results/figures/README.md` for the expected outputs. Figure images supplied as chat attachments are not automatically copied into GitHub; these commands regenerate the repository figures from the experiment results.
 
-The closed-loop experiments run on a simplified simulator, not the UVA/Padova model, and say nothing about clinical safety. The Shanghai records come from one city, include only 12 type 1 patients, record meals without carbohydrate amounts, and have no ground truth for the insulin effect. Federated averaging here has no formal privacy guarantee. The paper discusses each of these.
+## Design choices and limitations
+
+- Splits are by patient, never by time window.
+- The simulator measures each virtual patient's insulin effect by running paired probes with identical meals and noise.
+- Dose randomisation identifies an action effect in the simulated setting; state-dependent titration gives poorer overlap.
+- The Shanghai data are observational, come from one city, include only 12 type 1 patients, record meals without carbohydrate amounts, and have no ground truth for insulin effect. No closed-loop control is evaluated on real patients.
+- The closed-loop tests use a simplified simulator, not the UVA/Padova model, and do not establish clinical safety. Federated averaging has no formal privacy guarantee.
 
 ## Citation
-
-If you use this code, please cite the paper and the dataset:
 
 ```bibtex
 @unpublished{ghosh2026decline,
@@ -171,11 +151,6 @@ If you use this code, please cite the paper and the dataset:
 }
 ```
 
-## Development note
-
-Parts of the code and the manuscript were developed with the help of an AI assistant (Claude, Anthropic). All reported results come from running the code in this repository.
-
 ## Contact
 
 Akash Ghosh, Centre for Artificial Intelligence and Machine Learning, Indian Statistical Institute, Kolkata.
-

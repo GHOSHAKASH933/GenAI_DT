@@ -31,9 +31,8 @@ Thumbs.db
 data/*
 !data/README.md
 
-# Regenerated experiment outputs; committed paper results remain untouched
+# Regenerated experiment outputs; paper result files remain untouched
 results/quick.json
 results/robustness.json
 results/support.json
 results/real_results.json
-results/figures/

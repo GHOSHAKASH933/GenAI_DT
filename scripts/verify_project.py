@@ -17,24 +17,13 @@ if str(ROOT) not in sys.path:
 
 def main() -> None:
     required = [
-        "genai_dt/__init__.py",
-        "genai_dt/data.py",
-        "genai_dt/simulator.py",
-        "genai_dt/models.py",
-        "genai_dt/federated.py",
-        "genai_dt/conformal.py",
-        "genai_dt/control.py",
-        "genai_dt/intervention.py",
-        "genai_dt/experiments.py",
-        "genai_dt/support_analysis.py",
-        "genai_dt/robustness.py",
-        "analysis/analyse.py",
-        "analysis/figures.py",
-        "analysis/real_figure.py",
-        "realdata/shanghai.py",
-        "realdata/real_experiments.py",
-        "data/README.md",
-        "requirements.txt",
+        "genai_dt/__init__.py", "genai_dt/data.py", "genai_dt/simulator.py",
+        "genai_dt/models.py", "genai_dt/federated.py", "genai_dt/conformal.py",
+        "genai_dt/control.py", "genai_dt/intervention.py", "genai_dt/experiments.py",
+        "genai_dt/support_analysis.py", "genai_dt/robustness.py",
+        "analysis/analyse.py", "analysis/figures.py", "analysis/real_figure.py",
+        "realdata/shanghai.py", "realdata/real_experiments.py", "data/README.md",
+        "requirements.txt", "setup.sh", "results/figures/README.md",
     ]
     missing = [path for path in required if not (ROOT / path).is_file()]
     if missing:
@@ -48,29 +37,29 @@ def main() -> None:
         py_compile.compile(str(path), doraise=True)
     print(f"Syntax check passed ({len(python_files)} Python files).")
 
+    # Importing the real-data runner configures the shared data module for its
+    # 15-minute records. Preserve and restore simulation settings for this check.
+    from genai_dt import data as D
+    simulation_config = {
+        key: getattr(D, key)
+        for key in ("CONTEXT", "HORIZON", "CTX_DIM", "I_SCALE", "C_SCALE")
+    }
     modules = [
-        "genai_dt.data",
-        "genai_dt.simulator",
-        "genai_dt.models",
-        "genai_dt.federated",
-        "genai_dt.conformal",
-        "genai_dt.control",
-        "genai_dt.intervention",
-        "genai_dt.experiments",
-        "genai_dt.support_analysis",
-        "genai_dt.robustness",
-        "analysis.analyse",
-        "analysis.figures",
-        "realdata.shanghai",
+        "genai_dt.data", "genai_dt.simulator", "genai_dt.models",
+        "genai_dt.federated", "genai_dt.conformal", "genai_dt.control",
+        "genai_dt.intervention", "genai_dt.experiments",
+        "genai_dt.support_analysis", "genai_dt.robustness",
+        "analysis.analyse", "analysis.figures", "realdata.shanghai",
         "realdata.real_experiments",
     ]
     for name in modules:
         importlib.import_module(name)
+    for key, value in simulation_config.items():
+        setattr(D, key, value)
     print(f"Import check passed ({len(modules)} modules).")
 
     import numpy as np
     import torch
-    from genai_dt import data as D
     from genai_dt.models import ActionResidualTwin, CVAETwin, PointMLP
 
     context = D.encode_context(
@@ -86,8 +75,7 @@ def main() -> None:
     for model in (CVAETwin(), ActionResidualTwin()):
         loss, _, _ = model(x, y)
         assert torch.isfinite(loss).item()
-        sample = model.sample(x, n_samples=2)
-        assert sample.shape == (2, 1, D.HORIZON)
+        assert model.sample(x, n_samples=2).shape == (2, 1, D.HORIZON)
     assert PointMLP()(x).shape == (1, D.HORIZON)
     print("Model shape/forward smoke checks passed.")
     print("Project verification passed. Full experiments and real-data checks were not run.")
