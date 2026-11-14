@@ -1,113 +1,127 @@
-# GenAI_DT
+# When a Digital Twin Should Decline to Answer
 
-Research code accompanying *When a Digital Twin Should Decline to Answer: Treatment-Effect Validity and Calibrated Abstention in Generative Digital Twins* by Akash Ghosh and Abhraneel Dalui.
+Research code accompanying *When a Digital Twin Should Decline to Answer: Treatment-Effect Validity and Calibrated Abstention in Generative Digital Twins for Closed-Loop Glycaemic Control* by Akash Ghosh and Abhraneel Dalui.
 
-This repository evaluates whether a generative digital twin trained on routine-care data can support counterfactual insulin-dosing questions. It compares predictive calibration with treatment-effect validity, and evaluates action-support abstention in a controlled simulator and in observational Shanghai diabetes records. The simulator is a research testbed, not a clinical device or a validated model of clinical safety.
+## Overview
 
-## Repository contents
+Generative models can produce plausible patient futures, but a plausible forecast does not by itself establish that a model can answer an intervention question. This project tests that distinction using insulin dosing in a controlled in-silico glucose simulator with known patient-level treatment effects. It evaluates treatment-effect recovery, forecasting, conformal calibration, action support, closed-loop control, federated training, and edge distillation. Observational ShanghaiT1DM/T2DM records are used for forecasting, calibration, action-support, and learned-effect analyses; no closed-loop intervention is performed on real patients.
 
-- `genai_dt/`: virtual-patient simulator, generative and baseline models, federated training, conformal and action-support gates, and simulation experiments.
-- `realdata/`: Shanghai dataset loader and held-out-patient experiments.
-- `analysis/`: statistical summaries and figure-generation scripts.
-- `results/figures/`: one destination for generated figures.
-- `data/`: local location for the Shanghai files; the source data are not redistributed.
-- `scripts/`: lightweight syntax, import, and model-shape checks.
+The central methodological point is that predictive calibration and treatment-effect validity are different properties. The repository evaluates whether a twin's action-response is supported by its training data and includes abstention mechanisms for unsupported queries. All clinical-sounding outcomes are simulator results, not evidence of clinical efficacy or safety.
+
+## Repository structure
+
+```text
+genai_dt/                 simulator, models, training, gates, controllers, experiments
+analysis/                 statistical analysis and simulation/real-data figure scripts
+realdata/                 Shanghai data loader and real-data experiments
+data/                     local-only location for external Shanghai files
+results/                  experiment outputs and the shared figures directory
+scripts/                  repository verification helper
+```
+
+The core experiment modules map to the paper as follows:
+
+- `genai_dt/experiments.py`: simulation experiments E1–E5 (treatment effect, forecasting/federation, conformal calibration, closed loop, edge distillation).
+- `genai_dt/support_analysis.py`: action-support profiles used by Figure 5.
+- `genai_dt/robustness.py`: pump-safeguard robustness analysis.
+- `realdata/real_experiments.py`: real-record experiments R1–R4.
+- `analysis/analyse.py`, `analysis/figures.py`, `analysis/real_figure.py`: aggregation and figure generation.
 
 ## Requirements and installation
 
-Python 3.10 or newer is required. The experiments are CPU-compatible; no GPU is required. The recommended installation creates a project-local virtual environment and installs the package in editable mode:
+Python 3.10 or newer is required. The experiments run on CPU; a GPU is optional. From the repository root, the recommended first-time setup creates `.venv`, installs the package and dependencies in editable mode, and runs syntax/import/model smoke checks:
 
 ```bash
 bash setup.sh
 source .venv/bin/activate
 ```
 
-The setup script installs dependencies declared in `pyproject.toml` and runs the verification checks. On Windows, use PowerShell:
+On Windows PowerShell:
 
 ```powershell
 py -3.10 -m venv .venv
-.venv\Scripts\Activate.ps1
+.venv\\Scripts\\Activate.ps1
 python -m pip install --upgrade pip
 python -m pip install -e ".[dev]"
 python scripts/verify_project.py
 ```
 
-`requirements.txt` is also provided for environments that prefer requirements-file installs. `make help` lists the available development and experiment commands.
+The dependency list is maintained in `pyproject.toml`; `requirements.txt` is provided for requirements-file workflows. Use `make help` to list common commands.
 
 ## Validation
-
-Run syntax/import and model-forward smoke checks:
 
 ```bash
 make verify
 ```
 
-Run a compact simulation to confirm that the experiment pipeline executes and writes output. This quick configuration is for validation only and does not reproduce the reported study results:
+Run a compact simulation to validate the experiment path and output writing. The quick configuration is only a smoke test and does not reproduce paper results:
 
 ```bash
 make quick
 ```
 
-## Reproducing the simulation experiments
+## Simulation experiments
 
-Run all eight seeds from the repository root (the full study takes several minutes per seed, depending on hardware):
+Run the full eight-seed study from the repository root:
 
 ```bash
 make simulation SEEDS=8
 ```
 
-Equivalent direct command:
+Equivalent command:
 
 ```bash
 python -m genai_dt.experiments --seeds 8 --out results/results.json
 ```
 
-Optional supplementary analyses:
+Supplementary analyses:
 
 ```bash
 make support SEEDS=8       # action-support profiles
-make robustness SEEDS=8    # pump-safeguard robustness experiment
+make robustness SEEDS=8    # pump-safeguard robustness
 ```
 
-## Shanghai real-data experiment
+The study is patient-split, with training, calibration, and test patients kept separate. The seed is the statistical unit for the reported paired comparisons. Full runs are CPU-intensive; run the quick check first.
 
-Download the ShanghaiT1DM and ShanghaiT2DM datasets from figshare ([dataset DOI](https://doi.org/10.6084/m9.figshare.c.6310860)) and extract them into:
+## Shanghai real-data experiments
+
+Download the ShanghaiT1DM and ShanghaiT2DM datasets from figshare ([DOI: 10.6084/m9.figshare.c.6310860](https://doi.org/10.6084/m9.figshare.c.6310860)) and extract them to:
 
 ```text
 data/Shanghai_T1DM/
 data/Shanghai_T2DM/
 ```
 
-The patient data are not included in this repository. Then run:
+The source data are not included or redistributed. Run the real-data pipeline with:
 
 ```bash
 make real-data SEEDS=8
 ```
 
-For a shorter pipeline check with the dataset present:
+Or use the direct command:
 
 ```bash
-python -m realdata.real_experiments --quick --seeds 1
+python -m realdata.real_experiments --seeds 8
 ```
 
-Real-data analyses are observational and do not evaluate closed-loop control on patients.
+With the dataset installed, `python -m realdata.real_experiments --quick --seeds 1` provides a smaller pipeline check. The real-data analysis is observational; it does not test closed-loop dosing on patients.
 
 ## Statistics and figures
 
-After generating the relevant result files, run:
+After producing the result files required by each analysis:
 
 ```bash
 make stats
 make figures
 ```
 
-All plots are written under `results/figures/`. The simulation figure script generates Figures 1–5, including the treatment-effect recovery and interval-calibration panels shown in the supplied reference images. The real-data script generates Figure 6. Figure 5 requires `results/support.json`; Figure 6 requires `results/real_results.json`. See [`results/figures/README.md`](results/figures/README.md) for the output names and inputs.
+All plots are written to `results/figures/`. The simulation script generates Figures 1–5, including treatment-effect recovery (Figure 1) and interval calibration (Figure 2); the real-data script generates Figure 6. Figure 5 requires `results/support.json`, and Figure 6 requires `results/real_results.json`. See [`results/figures/README.md`](results/figures/README.md) for filenames and inputs.
 
-The images attached in chat are not available to the repository tools as binary files. The corresponding plots are generated from the experiment outputs by these scripts; no image files are claimed to have been copied from the attachments.
+The figures attached in chat are not available to the repository tools as original binary files. The repository scripts regenerate the corresponding plotted analyses from experiment results; they do not copy the chat attachments.
 
-## Scientific scope and limitations
+## Scope and limitations
 
-The simulator is simplified and is not the UVA/Padova simulator. Results from in-silico experiments do not establish clinical safety. The Shanghai cohort is observational, represents one city, includes relatively few type 1 patients, records meals without carbohydrate quantities, and has no ground truth for insulin effect. Federated averaging in this code does not provide a formal privacy guarantee.
+The virtual-patient model is a simplified Bergman-style simulator, not the UVA/Padova simulator, and it has no regulatory acceptance. Its closed-loop results are properties of the simulation and should not be interpreted as clinical safety estimates. The Shanghai records are observational, come from one city, contain relatively few type 1 patients, record meals without carbohydrate quantities, and provide no ground truth for insulin effect. FedAvg in this implementation has no formal differential-privacy guarantee.
 
 ## Citation
 

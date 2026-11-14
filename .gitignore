@@ -27,11 +27,11 @@ Thumbs.db
 .idea/
 .vscode/
 
-# Private Shanghai patient data (keep the instructions file)
+# Local patient data (retain data instructions)
 data/*
 !data/README.md
 
-# Regenerated experiment outputs; paper result files remain untouched
+# Regenerated intermediate outputs; preserve committed paper results and figures
 results/quick.json
 results/robustness.json
 results/support.json
