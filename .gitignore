@@ -1,5 +1,39 @@
+# Python bytecode and tooling
 __pycache__/
-*.pyc
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Virtual environments and local configuration
+.venv/
+venv/
+env/
+.env
+.env.*
+!.env.example
+
+# Build/package artifacts
+build/
+dist/
+*.egg-info/
+
+# OS/editor files
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Private Shanghai patient data (keep the instructions file)
 data/*
 !data/README.md
-.DS_Store
+
+# Regenerated experiment outputs; committed paper results remain untouched
+results/quick.json
+results/robustness.json
+results/support.json
+results/real_results.json
+results/figures/
